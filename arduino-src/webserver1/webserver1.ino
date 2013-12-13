@@ -1,5 +1,10 @@
+/* Homecontroll via JSON Protokoll */
+
+#include <TimedAction.h>
+#include <TimerOne.h>
 #include <DS18S20.h>
 #include <OneWire.h>
+
 
 #if ARDUINO > 18
 #include <SPI.h> // Für Arduino Version größer als 0018
@@ -26,12 +31,24 @@ byte i;
 byte present = 0;
 byte data[12];
 byte addr[8];
-  
+
+//Temp Berechnung  
 int HighByte, LowByte, SignBit, Whole, Fract, TReading, Tc_100, FWhole;
 
+// TEMP Management
+int Solltemp = 20; // als Basis Temperatur setzen
+int Isttemp;
+
+// Vorlaufregelung
+int FVup = 22;
+int FVdown = 23;
+
+TimedAction timedAction = TimedAction(1000,checkstate);
+TimedAction timedval = TimedAction(10000,triggerstate);
+boolean vorlauf1State = false;
 
 void setup()
-{  
+{ 
   Ethernet.begin(mac, ip); // Client starten
   server.begin();          // Server starten
   Serial.begin(9600);
@@ -74,7 +91,7 @@ void loop()
 {
   getTemp();
   //printTemp();
-  
+  timedAction.check();
   
   EthernetClient client = server.available(); // Auf Anfrage warten
 
@@ -103,6 +120,16 @@ void loop()
         {
           analogWrite(pin, val);
           Serial.print(" - A"+String(pin));
+        }
+        else if(typ == 'T')
+        {
+          Serial.print(" - T"+String(pin));
+          if(pin == 1)//T1 Vorlauf Fussboden
+          {
+            Solltemp = val;
+            Serial.print(" - TEMP SOLL Vorlauf Fussboden "+String(Solltemp));
+            
+          }
         }
         else Serial.print(" - Falscher Typ");
 
@@ -147,6 +174,7 @@ void loop()
               client.print("Temp: ");
               client.print(Whole);
               client.print("<br />");
+              /*
               for (int analogChannel = 0; analogChannel < 6; analogChannel++) 
               {
                 int sensorReading = analogRead(analogChannel);
@@ -156,6 +184,7 @@ void loop()
                 client.print(sensorReading);
                 client.println("<br />");       
               }
+              */
               client.println("</html>");
               break;
             }
@@ -242,5 +271,14 @@ void printTemp(void) {
   Serial.println(" F");
 }
 
+void checkstate()
+{
+  vorlauf1State ? vorlauf1State=false : vorlauf1State=true;
+  //digitalWrite(FVdown,vorlauf1State);
+}
 
+void triggerstate()
+{
+
+}
 
